@@ -1,5 +1,6 @@
 use clap::Parser;
 use serde_json::Value;
+use std::io::Write;
 use std::{fs, process};
 
 #[derive(Parser, Debug)]
@@ -12,6 +13,10 @@ struct Args {
     /// Field in the JSON that contains the nested JSON
     #[arg(long)]
     jsonfield: String,
+
+    /// Do not actually write files, only print what would be done
+    #[arg(long)]
+    dry_run: bool,
 
     /// How to name output files
     #[command(subcommand)]
@@ -59,10 +64,30 @@ fn filename(
     base.map(|base| format!("{}.json", base))
 }
 
+fn write_content(filename: &String, content: &String, dry_run: bool) -> () {
+    let bytes = content.as_bytes();
+    if dry_run {
+        println!(
+            "Would have written {} bytes to file: {}",
+            bytes.len(),
+            filename
+        );
+        return;
+    }
+
+    let path = std::path::Path::new(filename);
+    if let Ok(true) = path.try_exists() {
+        eprintln!("aborting, after finding existing file: {filename}");
+        process::exit(1);
+    }
+
+    let mut file = std::fs::File::create(filename).unwrap();
+    file.write_all(content.as_bytes()).unwrap();
+    println!("Wrote {} bytes to file: {}", bytes.len(), filename);
+}
+
 fn main() {
     let args = Args::parse();
-
-    println!("args {:?}", args);
 
     let data = fs::read(args.filename).unwrap_or_else(|err| {
         eprintln!("Could not read input file: {err}");
@@ -110,9 +135,27 @@ fn main() {
         .zip(nested_jsons.iter())
         .enumerate()
         .map_while(|(index, (original, nested))| {
-            filename(&args.output, index, padding_size, &original, &nested)
+            let filename = filename(&args.output, index, padding_size, &original, &nested)?;
+            let content = nested.to_string();
+            Some((filename, content))
         })
         .collect();
 
-    println!("output {:?}", outputs);
+    {
+        let outputs_len = outputs.len();
+        if outputs_len != expected {
+            eprintln!(
+                "Could not map one or more object to get filename, got: {}, but expected: {}",
+                outputs_len, expected
+            );
+            process::exit(1);
+        }
+    }
+
+    if args.dry_run {
+        println!("Simulating an actual run, without writing to files:");
+    }
+    for (filename, content) in outputs {
+        write_content(&filename, &content, args.dry_run);
+    }
 }
