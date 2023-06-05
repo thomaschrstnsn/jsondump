@@ -12,6 +12,37 @@ struct Args {
     /// Field in the JSON that contains the nested JSON
     #[arg(long)]
     jsonfield: String,
+
+    /// How to name output files
+    #[command(subcommand)]
+    output: OutputNaming,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum OutputNaming {
+    /// Use array index
+    ArrayIndex,
+
+    /// Field in nested object to use
+    NestedField { field: String },
+
+    /// Field in original object to use
+    OriginalField { field: String },
+}
+
+fn filename(
+    naming: &OutputNaming,
+    index: usize,
+    original: &Value,
+    nested: &Value,
+) -> Option<String> {
+    match &naming {
+        OutputNaming::ArrayIndex => Some(format!("{}.json", index)),
+        OutputNaming::NestedField { field } => nested.get(field)?.as_str().map(|s| s.to_owned()),
+        OutputNaming::OriginalField { field } => {
+            original.get(field)?.as_str().map(|s| s.to_owned())
+        }
+    }
 }
 
 fn main() {
@@ -33,9 +64,10 @@ fn main() {
         eprintln!("Expected to find array of objects");
         process::exit(1);
     };
+
     let expected = values.len();
     let nested_jsons: Vec<Value> = values
-        .into_iter()
+        .iter()
         .map_while(|v| {
             let Some(s) = v.get(&args.jsonfield)?.as_str() else {
                 return None;
@@ -57,4 +89,13 @@ fn main() {
         );
         process::exit(1);
     }
+
+    let outputs: Vec<_> = values
+        .iter()
+        .zip(nested_jsons.iter())
+        .enumerate()
+        .map_while(|(index, (original, nested))| filename(&args.output, index, &original, &nested))
+        .collect();
+
+    println!("output {:?}", outputs);
 }
