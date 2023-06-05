@@ -1,6 +1,7 @@
 use clap::Parser;
 use serde_json::Value;
 use std::io::Write;
+use std::path::Path;
 use std::{fs, process};
 
 #[derive(Parser, Debug)]
@@ -88,7 +89,7 @@ fn write_content(filename: &String, content: &String, dry_run: bool) -> () {
         return;
     }
 
-    let path = std::path::Path::new(filename);
+    let path = Path::new(filename);
     if let Ok(true) = path.try_exists() {
         eprintln!("aborting, after finding existing file: {filename}");
         process::exit(1);
