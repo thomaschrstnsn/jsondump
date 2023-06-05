@@ -39,7 +39,20 @@ enum OutputNaming {
 }
 
 fn get_field_as_string(value: &Value, field: &str) -> Option<String> {
-    value.get(field)?.as_str().map(|s| s.to_owned())
+    let field = value.get(field)?;
+
+    if field.is_string() {
+        return field.as_str().map(|s| s.to_owned());
+    }
+    if field.is_number() {
+        return field.as_u64().map(|n| format!("{}", n));
+    }
+
+    eprintln!(
+        "Field {} has unsupported type (it is not string or number)",
+        field
+    );
+    None
 }
 
 fn filename(
