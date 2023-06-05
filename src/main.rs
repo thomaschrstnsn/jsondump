@@ -21,7 +21,10 @@ struct Args {
 #[derive(clap::Subcommand, Debug)]
 enum OutputNaming {
     /// Use array index
-    ArrayIndex,
+    ArrayIndex {
+        #[arg(long)]
+        padding: Option<bool>,
+    },
 
     /// Field in nested object to use
     NestedField { field: String },
@@ -30,19 +33,30 @@ enum OutputNaming {
     OriginalField { field: String },
 }
 
+fn get_field_as_string(value: &Value, field: &str) -> Option<String> {
+    value.get(field)?.as_str().map(|s| s.to_owned())
+}
+
 fn filename(
     naming: &OutputNaming,
     index: usize,
+    padding_size: usize,
     original: &Value,
     nested: &Value,
 ) -> Option<String> {
-    match &naming {
-        OutputNaming::ArrayIndex => Some(format!("{}.json", index)),
-        OutputNaming::NestedField { field } => nested.get(field)?.as_str().map(|s| s.to_owned()),
-        OutputNaming::OriginalField { field } => {
-            original.get(field)?.as_str().map(|s| s.to_owned())
+    let base = match &naming {
+        OutputNaming::ArrayIndex { padding } => {
+            let padding = if padding.unwrap_or(true) {
+                padding_size
+            } else {
+                0
+            };
+            Some(format!("{:0padding$}", index))
         }
-    }
+        OutputNaming::NestedField { field } => get_field_as_string(&nested, field),
+        OutputNaming::OriginalField { field } => get_field_as_string(&original, field),
+    };
+    base.map(|base| format!("{}.json", base))
 }
 
 fn main() {
@@ -90,11 +104,14 @@ fn main() {
         process::exit(1);
     }
 
+    let padding_size = format!("{}", actual).len();
     let outputs: Vec<_> = values
         .iter()
         .zip(nested_jsons.iter())
         .enumerate()
-        .map_while(|(index, (original, nested))| filename(&args.output, index, &original, &nested))
+        .map_while(|(index, (original, nested))| {
+            filename(&args.output, index, padding_size, &original, &nested)
+        })
         .collect();
 
     println!("output {:?}", outputs);
