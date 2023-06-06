@@ -19,6 +19,10 @@ struct Args {
     #[arg(long)]
     dry_run: bool,
 
+    /// Continue when encountering rows with errors (print problems)
+    #[arg(long)]
+    continue_on_error: bool,
+
     /// How to name output files
     #[command(subcommand)]
     output: OutputNaming,
@@ -140,7 +144,9 @@ fn main() {
         eprintln!(
             "Could not apply field to each element in array. Only {actual}, expected {expected}"
         );
-        process::exit(1);
+        if !args.continue_on_error {
+            process::exit(1);
+        }
     }
 
     let padding_size = format!("{}", actual).len();
@@ -162,7 +168,9 @@ fn main() {
                 "Could not map one or more object to get filename, got: {}, but expected: {}",
                 outputs_len, expected
             );
-            process::exit(1);
+            if !args.continue_on_error {
+                process::exit(1);
+            }
         }
     }
 
