@@ -4,9 +4,9 @@ Small utility for reading a JSON-file as produced by Azure Data Studio, where th
 
 This program can write each row into its own `.json`-file where the name is specified as either:
 
- - `array-index`: the index of the row in the result set (starting from 0)
- - `original-field abc`: A field in the original row, here `abc`
- - `nested-field xyz`:   A field in the nested json object, here `xyz`
+ - `array-index`: the index of the row in the result set (starting from 0), e.g. `01.json` etc
+ - `original-field Id`: A field in the original row, here `Id`, e.g. `1001000.json` etc
+ - `nested-field AggregateId`:   A field in the nested json object, here `AggregateId`, e.g. `my-aggregate-123456.json` etc.
 
 
 Examples, all assume input is in `Results.json`:
@@ -20,6 +20,15 @@ jsondump --filename Results.json --jsonfield JsonBlob    original-field Id
 jsondump --filename Results.json --jsonfield Data        nested-field MessageId  
 # dry-run (dont actually write any files, just print what would be done)
 jsondump --filename Results.json --jsonfield Data --dry-run  nested-field MessageId  
+```
+
+The last command could output the following:
+
+```
+Simulating an actual run, without writing to files:
+Would have written 723 bytes to file: 15.json
+Would have written 730 bytes to file: 16.json
+Would have written 729 bytes to file: 17.json
 ```
 
 ## Toy project
